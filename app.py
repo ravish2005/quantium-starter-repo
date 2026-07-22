@@ -1,37 +1,83 @@
 import pandas as pd
-import dash
-from dash import dcc, html
+from dash import Dash, dcc, html, Input, Output
 import plotly.express as px
 
-# Read processed data
+# Read data
 df = pd.read_csv("formatted_sales_data.csv")
-
-# Convert date column to datetime
 df["date"] = pd.to_datetime(df["date"])
 
-# Group sales by date
-sales = df.groupby("date", as_index=False)["sales"].sum()
+app = Dash(__name__)
 
-# Create line chart
-fig = px.line(
-    sales,
-    x="date",
-    y="sales",
-    title="Pink Morsel Sales Over Time"
+app.layout = html.Div(
+    style={
+        "backgroundColor": "#f5f5f5",
+        "padding": "30px",
+        "fontFamily": "Arial",
+    },
+    children=[
+        html.H1(
+            "Soul Foods Pink Morsel Sales Dashboard",
+            style={
+                "textAlign": "center",
+                "color": "#2c3e50"
+            },
+        ),
+
+        html.Label(
+            "Select Region:",
+            style={"fontSize": "20px", "fontWeight": "bold"},
+        ),
+
+        dcc.RadioItems(
+            id="region-filter",
+            options=[
+                {"label": "All", "value": "all"},
+                {"label": "North", "value": "north"},
+                {"label": "East", "value": "east"},
+                {"label": "South", "value": "south"},
+                {"label": "West", "value": "west"},
+            ],
+            value="all",
+            inline=True,
+            style={"marginBottom": "20px"},
+        ),
+
+        dcc.Graph(id="sales-chart"),
+    ],
 )
 
-fig.update_layout(
-    xaxis_title="Date",
-    yaxis_title="Sales"
+
+@app.callback(
+    Output("sales-chart", "figure"),
+    Input("region-filter", "value"),
 )
+def update_graph(region):
+    filtered = df.copy()
 
-# Create Dash app
-app = dash.Dash(__name__)
+    if region != "all":
+        filtered = filtered[filtered["region"] == region]
 
-app.layout = html.Div([
-    html.H1("Soul Foods Pink Morsel Sales Dashboard"),
-    dcc.Graph(figure=fig)
-])
+    sales = (
+        filtered.groupby("date", as_index=False)["sales"]
+        .sum()
+        .sort_values("date")
+    )
+
+    fig = px.line(
+        sales,
+        x="date",
+        y="sales",
+        title="Pink Morsel Sales Over Time",
+    )
+
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Sales",
+        template="plotly_white",
+    )
+
+    return fig
+
 
 if __name__ == "__main__":
     app.run(debug=True)
